@@ -114,7 +114,7 @@ export default (store, {
 
 
     // Send store's initial state through port
-    const initialStateSender = sendResponse || serializedMessagePoster;
+    const initialStateSender = sendResponse ? withSerializer(serializer)((...args) => sendResponse(...args)) : serializedMessagePoster;
     initialStateSender({
       type: STATE_TYPE,
       payload: prevState,
