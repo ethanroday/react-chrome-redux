@@ -71,7 +71,7 @@ class Store {
     }
     else {
       const serializedMessageListener = withDeserializer(deserializer)((...args) => chrome.runtime.onMessage.addListener(...args));
-      const shouldDeserialize = (request) => request.type === STATE_TYPE || request.type === PATCH_STATE_TYPE;
+      const shouldDeserialize = (request) => request.type === STATE_TYPE || request.type === PATCH_STATE_TYPE || request.type === CONNECT_TYPE;
       serializedMessageListener(handleMessage, shouldDeserialize);
       chrome.runtime.sendMessage({ type: CONNECT_TYPE }, handleMessage);
     }
