@@ -9,3 +9,7 @@ export const STATE_TYPE = 'chromex.state';
 // Message type for state patch events from
 // background to Proxy Stores
 export const PATCH_STATE_TYPE = 'chromex.patch_state';
+
+// Message type for the connection event when using
+// regular events rather than ports
+export const CONNECT_TYPE = 'chromex.connect';

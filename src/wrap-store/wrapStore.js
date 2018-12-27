@@ -1,7 +1,8 @@
 import {
   DISPATCH_TYPE,
   STATE_TYPE,
-  PATCH_STATE_TYPE
+  PATCH_STATE_TYPE,
+  CONNECT_TYPE
 } from '../constants';
 import { withSerializer, withDeserializer, noop } from "../serialization";
 
@@ -41,7 +42,8 @@ export default (store, {
   dispatchResponder,
   serializer = noop,
   deserializer = noop,
-  diffStrategy = shallowDiff
+  diffStrategy = shallowDiff,
+  allowMessageConnections = false
 }) => {
   if (!portName) {
     throw new Error('portName is required in options');
@@ -87,12 +89,9 @@ export default (store, {
   /**
   * Setup for state updates
   */
-  const connectState = (port) => {
-    if (port.name !== portName) {
-      return;
-    }
+  const connectState = (sendMessageFn, sendResponse) => {
 
-    const serializedMessagePoster = withSerializer(serializer)((...args) => port.postMessage(...args));
+    const serializedMessagePoster = withSerializer(serializer)((...args) => sendMessageFn(...args));
 
     let prevState = store.getState();
 
@@ -113,14 +112,15 @@ export default (store, {
     // Send patched state down connected port on every redux store state change
     const unsubscribe = store.subscribe(patchState);
 
-    // when the port disconnects, unsubscribe the sendState listener
-    port.onDisconnect.addListener(unsubscribe);
 
     // Send store's initial state through port
-    serializedMessagePoster({
+    const initialStateSender = sendResponse || serializedMessagePoster;
+    initialStateSender({
       type: STATE_TYPE,
       payload: prevState,
     });
+    
+    return unsubscribe;
   };
 
   const withPayloadDeserializer = withDeserializer(deserializer);
@@ -131,26 +131,26 @@ export default (store, {
    */
   withPayloadDeserializer((...args) => chrome.runtime.onMessage.addListener(...args))(dispatchResponse, shouldDeserialize);
 
-  /**
-   * Setup external action handler
-   */
-  if (chrome.runtime.onMessageExternal) {
-    withPayloadDeserializer((...args) => chrome.runtime.onMessageExternal.addListener(...args))(dispatchResponse, shouldDeserialize);
-  } else {
-    console.warn('runtime.onMessageExternal is not supported');
+  
+  const connectFromPort = (port) => {
+    if (port.name !== portName) {
+      return;
+    }
+
+    const unsubscribe = connectState(port.postMessage);
+
+    // when the port disconnects, unsubscribe the sendState listener
+    port.onDisconnect.addListener(unsubscribe);
+
   }
+  chrome.runtime.onConnect.addListener(connectFromPort);
 
-  /**
-   * Setup extended connection
-   */
-  chrome.runtime.onConnect.addListener(connectState);
-
-  /**
-   * Setup extended external connection
-   */
-  if (chrome.runtime.onConnectExternal) {
-    chrome.runtime.onConnectExternal.addListener(connectState);
-  } else {
-    console.warn('runtime.onConnectExternal is not supported');
+  if (allowMessageConnections) {
+    const connectFromMessage = (message, sender, sendResponse) => {
+      if (message.type === CONNECT_TYPE) {
+        connectState(chrome.runtime.sendMessage, sendResponse);
+      }
+    }
+    chrome.runtime.onMessage.addListener(connectFromMessage); 
   }
 };

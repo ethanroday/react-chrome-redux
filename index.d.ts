@@ -14,7 +14,8 @@ export class Store<S = any, A extends redux.Action = redux.Action> {
     extensionId?: string,
     serializer?: Function,
     deserializer?: Function,
-    patchStrategy?: PatchStrategy
+    patchStrategy?: PatchStrategy,
+    usePorts?: boolean;
   });
 
   /**
@@ -80,7 +81,8 @@ export function wrapStore<S>(
     dispatchResponder?(dispatchResult: any, send: (response: any) => void): void,
     serializer?: Function,
     deserializer?: Function,
-    diffStrategy?: DiffStrategy
+    diffStrategy?: DiffStrategy,
+    allowMessageConnections?: boolean
   },
 ): void;
 

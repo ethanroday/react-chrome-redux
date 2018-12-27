@@ -3,7 +3,8 @@ import assignIn from 'lodash/assignIn';
 import {
   DISPATCH_TYPE,
   STATE_TYPE,
-  PATCH_STATE_TYPE
+  PATCH_STATE_TYPE,
+  CONNECT_TYPE
 } from '../constants';
 import { withSerializer, withDeserializer, noop } from "../serialization";
 
@@ -18,7 +19,7 @@ class Store {
    * Creates a new Proxy store
    * @param  {object} options An object of form {portName, state, extensionId, serializer, deserializer, diffStrategy}, where `portName` is a required string and defines the name of the port for state transition changes, `state` is the initial state of this store (default `{}`) `extensionId` is the extension id as defined by chrome when extension is loaded (default `''`), `serializer` is a function to serialize outgoing message payloads (default is passthrough), `deserializer` is a function to deserialize incoming message payloads (default is passthrough), and patchStrategy is one of the included patching strategies (default is shallow diff) or a custom patching function.
    */
-  constructor({portName, state = {}, extensionId = null, serializer = noop, deserializer = noop, patchStrategy = shallowDiff}) {
+  constructor({portName, state = {}, extensionId = null, serializer = noop, deserializer = noop, patchStrategy = shallowDiff, usePorts = true}) {
     if (!portName) {
       throw new Error('portName is required in options');
     }
@@ -37,15 +38,12 @@ class Store {
     this.readyPromise = new Promise(resolve => this.readyResolve = resolve);
 
     this.extensionId = extensionId; // keep the extensionId as an instance variable
-    this.port = chrome.runtime.connect(this.extensionId, {name: portName});
-    this.serializedPortListener = withDeserializer(deserializer)((...args) => this.port.onMessage.addListener(...args));
     this.serializedMessageSender = withSerializer(serializer)((...args) => chrome.runtime.sendMessage(...args), 1);
     this.listeners = [];
     this.state = state;
     this.patchStrategy = patchStrategy;
 
-    // Don't use shouldDeserialize here, since no one else should be using this port
-    this.serializedPortListener(message => {
+    const handleMessage = message => {
       switch (message.type) {
         case STATE_TYPE:
           this.replaceState(message.payload);
@@ -63,7 +61,28 @@ class Store {
         default:
           // do nothing
       }
-    });
+    }
+
+    if (usePorts) {
+      this.port = chrome.runtime.connect(this.extensionId, {name: portName});
+      const serializedPortListener = withDeserializer(deserializer)((...args) => this.port.onMessage.addListener(...args));
+      // Don't use shouldDeserialize here, since no one else should be using this port
+      serializedPortListener(handleMessage);
+    }
+    else {
+      const serializedMessageListener = withDeserializer(deserializer)((...args) => chrome.runtime.onMessage.addListener(...args));
+      const shouldDeserialize = (request) => request.type === STATE_TYPE || request.type === PATCH_STATE_TYPE;
+      serializedMessageListener(handleMessage, shouldDeserialize);
+      chrome.runtime.sendMessage({ type: CONNECT_TYPE }, handleMessage);
+    }
+
+
+    if (usePorts) {
+      
+    }
+    else {
+      
+    }
 
     this.dispatch = this.dispatch.bind(this); // add this context to dispatch
   }
