@@ -1,6 +1,6 @@
 export const noop = (payload) => payload;
 
-const transformPayload = (message, transformer = noop) => ({
+export const transformPayload = (message, transformer = noop) => ({
   ...message,
   // If the message has a payload, transform it. Otherwise,
   // just return a copy of the message.

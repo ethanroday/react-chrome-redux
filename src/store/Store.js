@@ -6,7 +6,7 @@ import {
   PATCH_STATE_TYPE,
   CONNECT_TYPE
 } from '../constants';
-import { withSerializer, withDeserializer, noop } from "../serialization";
+import { withSerializer, withDeserializer, noop, transformPayload } from "../serialization";
 
 import shallowDiff from '../strategies/shallowDiff/patch';
 
@@ -73,7 +73,7 @@ class Store {
       const serializedMessageListener = withDeserializer(deserializer)((...args) => chrome.runtime.onMessage.addListener(...args));
       const shouldDeserialize = (request) => request.type === STATE_TYPE || request.type === PATCH_STATE_TYPE || request.type === CONNECT_TYPE;
       serializedMessageListener(handleMessage, shouldDeserialize);
-      chrome.runtime.sendMessage({ type: CONNECT_TYPE }, response => handleMessage(deserializer(response)));
+      chrome.runtime.sendMessage({ type: CONNECT_TYPE }, response => handleMessage(transformPayload(response, deserializer)));
     }
 
 
