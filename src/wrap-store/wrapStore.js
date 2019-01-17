@@ -137,7 +137,7 @@ export default (store, {
       return;
     }
 
-    const unsubscribe = connectState(port.postMessage);
+    const unsubscribe = connectState(message => port.postMessage(message));
 
     // when the port disconnects, unsubscribe the sendState listener
     port.onDisconnect.addListener(unsubscribe);
