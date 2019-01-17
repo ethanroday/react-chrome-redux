@@ -143,7 +143,7 @@ export default (store, {
     port.onDisconnect.addListener(unsubscribe);
 
   }
-  chrome.runtime.onConnect.addListener(connectFromPort);
+  chrome.runtime.onConnect.addListener(port => connectFromPort(port));
 
   if (allowMessageConnections) {
     const connectFromMessage = (message, sender, sendResponse) => {
